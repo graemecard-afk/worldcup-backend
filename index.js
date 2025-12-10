@@ -7,6 +7,7 @@ import { matchesRouter } from './routes/matches.js';
 import { predictionsRouter } from './routes/predictions.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { tournamentsRouter } from './routes/tournaments.js';
+import { ensureSchema } from './schema.js';
 
 dotenv.config();
 
@@ -27,6 +28,17 @@ app.use('/tournaments', tournamentsRouter);
 
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+async function start() {
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error('Error ensuring schema:', err);
+    // Even if schema fails, we log it and still start the server
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+}
+
+start();
