@@ -54,6 +54,7 @@ export function adminOnly(req, res, next) {
   // New rule: email allowlist
   const email = (req.user?.email || '').toLowerCase();
   if (email && ADMIN_EMAILS.includes(email)) return next();
+console.log('ADMIN CHECK', { email, ADMIN_EMAILS, user: req.user });
 
   return res.status(403).json({ error: 'Admin only' });
 }
