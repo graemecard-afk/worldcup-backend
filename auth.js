@@ -1,48 +1,53 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// Comma-separated allowlist of admin emails (lowercased).
+// Example (Render env var): ADMIN_EMAILS="you@example.com,other@example.com"
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-please';
+function getBearerToken(req) {
+  const header = req.headers.authorization || req.headers.Authorization;
+  if (!header || typeof header !== 'string') return null;
 
-export async function hashPassword(password) {
-  const salt = await bcrypt.genSalt(10);
-  return bcrypt.hash(password, salt);
+  const parts = header.split(' ');
+  if (parts.length !== 2) return null;
+  if (parts[0].toLowerCase() !== 'bearer') return null;
+
+  return parts[1];
 }
 
-export async function comparePassword(password, hash) {
-  return bcrypt.compare(password, hash);
-}
-
-export function generateToken(user) {
-  return jwt.sign(
-    { id: user.id, email: user.email, is_admin: user.is_admin },
-    JWT_SECRET,
-    { expiresIn: '30d' }
-  );
-}
-
+// Auth middleware: verifies JWT, sets req.user to the decoded payload
 export function authMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing token' });
+  const token = getBearerToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'Missing Authorization token' });
   }
 
-  const token = header.slice(7);
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    // Fail closed: do not allow auth without a secret
+    return res.status(500).json({ error: 'Server auth misconfigured (JWT_SECRET missing)' });
+  }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, secret);
     req.user = payload;
-    next();
+    return next();
   } catch (err) {
-    return res.status(401).json({ error: 'Invalid token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
+// Admin gate: allow if payload has role/is_admin OR if email in allowlist
 export function adminOnly(req, res, next) {
-  if (!req.user || !req.user.is_admin) {
-    return res.status(403).json({ error: 'Admin only' });
-  }
-  next();
+  // Support role flags in token payload (if you already include them)
+  if (req.user?.is_admin === true) return next();
+  if (req.user?.role === 'admin') return next();
+
+  const email = (req.user?.email || '').toLowerCase();
+  if (email && ADMIN_EMAILS.includes(email)) return next();
+
+  return res.status(403).json({ error: 'Admin only' });
 }
