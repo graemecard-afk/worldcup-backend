@@ -53,3 +53,29 @@ matchesRouter.post('/:matchId/result', authMiddleware, adminOnly, async (req, re
     res.status(500).json({ error: 'Failed to save result' });
   }
 });
+// Admin: unfinalise a match (make editable again)
+matchesRouter.post('/:matchId/unfinalise', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+
+    const result = await query(
+      `UPDATE matches
+       SET result_home_goals = NULL,
+           result_away_goals = NULL,
+           result_finalized = false
+       WHERE id = $1
+       RETURNING id, result_home_goals, result_away_goals, result_finalized`,
+      [matchId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    res.json({ ok: true, match: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to unfinalise match' });
+  }
+});
+
