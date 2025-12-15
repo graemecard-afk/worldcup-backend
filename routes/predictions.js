@@ -77,15 +77,19 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
   }
 });
 
-// Get my predictions for a tournament
+// Get my predictions for a tournament (with points)
 predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, res) => {
   const { tournamentId } = req.params;
 
   try {
     const result = await query(
-      `SELECT p.match_id,
-              p.predicted_home_goals,
-              p.predicted_away_goals
+      `SELECT
+         p.match_id,
+         p.predicted_home_goals,
+         p.predicted_away_goals,
+         m.result_home_goals,
+         m.result_away_goals,
+         m.result_finalized
        FROM predictions p
        JOIN matches m ON m.id = p.match_id
        WHERE p.user_id = $1
@@ -93,9 +97,54 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
       [req.user.id, tournamentId]
     );
 
-    res.json(result.rows);
+    const outcome = (h, a) => (h > a ? 'H' : h < a ? 'A' : 'D');
+
+    const rowsWithPoints = result.rows.map(r => {
+      // Not finalised yet → no points
+      if (!r.result_finalized) {
+        return {
+          match_id: r.match_id,
+          predicted_home_goals: r.predicted_home_goals,
+          predicted_away_goals: r.predicted_away_goals,
+          points: null,
+        };
+      }
+
+      const ph = r.predicted_home_goals;
+      const pa = r.predicted_away_goals;
+      const ah = r.result_home_goals;
+      const aa = r.result_away_goals;
+
+      // Defensive: if results missing, no points
+      if (ah === null || aa === null || ph === null || pa === null) {
+        return {
+          match_id: r.match_id,
+          predicted_home_goals: r.predicted_home_goals,
+          predicted_away_goals: r.predicted_away_goals,
+          points: null,
+        };
+      }
+
+      let points = 0;
+
+      // 10 points per correct item (4 items = 40 total)
+      if (outcome(ph, pa) === outcome(ah, aa)) points += 10;       // correct outcome
+      if ((ph - pa) === (ah - aa)) points += 10;                   // correct goal difference
+      if (ph === ah) points += 10;                                 // correct home goals
+      if (pa === aa) points += 10;                                 // correct away goals
+
+      return {
+        match_id: r.match_id,
+        predicted_home_goals: r.predicted_home_goals,
+        predicted_away_goals: r.predicted_away_goals,
+        points,
+      };
+    });
+
+    res.json(rowsWithPoints);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to load predictions' });
   }
 });
+
