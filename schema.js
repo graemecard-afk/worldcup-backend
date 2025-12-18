@@ -126,7 +126,7 @@ INSERT INTO matches (
    '11111111-1111-1111-1111-111111111111',
    'GROUP', 'Group B', 'Sierra', 'Tango', '2026-06-12 00:00:00+00', 'Stadium 2')
 ON CONFLICT (id) DO NOTHING;
-
+;
 
 export async function ensureSchema() {
   console.log('Ensuring database schema exists...');
