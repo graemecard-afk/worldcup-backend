@@ -41,20 +41,19 @@ export function authMiddleware(req, res, next) {
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = payload;
-    next();
+    return next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
 
 export function adminOnly(req, res, next) {
-  // Existing rule
+  // Rule 1: DB flag (if present)
   if (req.user?.is_admin) return next();
 
-  // New rule: email allowlist
+  // Rule 2: email allowlist
   const email = (req.user?.email || '').toLowerCase();
   if (email && ADMIN_EMAILS.includes(email)) return next();
-console.log('ADMIN CHECK', { email, ADMIN_EMAILS, user: req.user });
 
   return res.status(403).json({ error: 'Admin only' });
 }
