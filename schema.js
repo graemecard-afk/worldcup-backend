@@ -62,41 +62,74 @@ INSERT INTO matches (
   ('20000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','GROUP','Group B','Sierra','Tango','2026-06-12 00:00:00+00','Stadium 2')
 ON CONFLICT (id) DO NOTHING;
 -- =========================
--- UPDATE team names to real Premier League fixtures
--- Sat–Mon 20–22
+-- =========================
+-- UPDATE fixtures + kickoff_utc (UTC) + clear any finalized results
+-- Source times (UK): Sky Sports fixtures list (Dec 20–22, 2025)
+-- UK in December = GMT = UTC
 -- =========================
 
--- Group A (first 5)
-UPDATE matches SET home_team = 'Newcastle United', away_team = 'Chelsea'
-WHERE id = '20000000-0000-0000-0000-000000000001';
+UPDATE matches
+SET
+  -- keep the fixture names correct
+  home_team = CASE id
+    WHEN '20000000-0000-0000-0000-000000000001' THEN 'Newcastle United'
+    WHEN '20000000-0000-0000-0000-000000000002' THEN 'Bournemouth'
+    WHEN '20000000-0000-0000-0000-000000000005' THEN 'Brighton & Hove Albion'
+    WHEN '20000000-0000-0000-0000-000000000006' THEN 'Manchester City'
+    WHEN '20000000-0000-0000-0000-000000000007' THEN 'Wolverhampton Wanderers'
+    WHEN '20000000-0000-0000-0000-000000000003' THEN 'Tottenham Hotspur'
+    WHEN '20000000-0000-0000-0000-000000000004' THEN 'Everton'
+    WHEN '20000000-0000-0000-0000-000000000008' THEN 'Leeds United'
+    WHEN '20000000-0000-0000-0000-000000000009' THEN 'Aston Villa'
+    WHEN '20000000-0000-0000-0000-000000000010' THEN 'Fulham'
+    ELSE home_team
+  END,
+  away_team = CASE id
+    WHEN '20000000-0000-0000-0000-000000000001' THEN 'Chelsea'
+    WHEN '20000000-0000-0000-0000-000000000002' THEN 'Burnley'
+    WHEN '20000000-0000-0000-0000-000000000005' THEN 'Sunderland'
+    WHEN '20000000-0000-0000-0000-000000000006' THEN 'West Ham United'
+    WHEN '20000000-0000-0000-0000-000000000007' THEN 'Brentford'
+    WHEN '20000000-0000-0000-0000-000000000003' THEN 'Liverpool'
+    WHEN '20000000-0000-0000-0000-000000000004' THEN 'Arsenal'
+    WHEN '20000000-0000-0000-0000-000000000008' THEN 'Crystal Palace'
+    WHEN '20000000-0000-0000-0000-000000000009' THEN 'Manchester United'
+    WHEN '20000000-0000-0000-0000-000000000010' THEN 'Nottingham Forest'
+    ELSE away_team
+  END,
 
-UPDATE matches SET home_team = 'Bournemouth', away_team = 'Burnley'
-WHERE id = '20000000-0000-0000-0000-000000000002';
+  -- fix kickoff_utc (UTC)
+  kickoff_utc = CASE id
+    WHEN '20000000-0000-0000-0000-000000000001' THEN '2025-12-20 12:30:00+00' -- Newcastle v Chelsea 12:30
+    WHEN '20000000-0000-0000-0000-000000000002' THEN '2025-12-20 15:00:00+00' -- Bournemouth v Burnley 15:00
+    WHEN '20000000-0000-0000-0000-000000000005' THEN '2025-12-20 15:00:00+00' -- Brighton v Sunderland 15:00
+    WHEN '20000000-0000-0000-0000-000000000006' THEN '2025-12-20 15:00:00+00' -- Man City v West Ham 15:00
+    WHEN '20000000-0000-0000-0000-000000000007' THEN '2025-12-20 15:00:00+00' -- Wolves v Brentford 15:00
+    WHEN '20000000-0000-0000-0000-000000000003' THEN '2025-12-20 17:30:00+00' -- Spurs v Liverpool 17:30
+    WHEN '20000000-0000-0000-0000-000000000004' THEN '2025-12-20 20:00:00+00' -- Everton v Arsenal 20:00
+    WHEN '20000000-0000-0000-0000-000000000008' THEN '2025-12-20 20:00:00+00' -- Leeds v Palace 20:00
+    WHEN '20000000-0000-0000-0000-000000000009' THEN '2025-12-21 16:30:00+00' -- Villa v Man Utd 16:30
+    WHEN '20000000-0000-0000-0000-000000000010' THEN '2025-12-22 20:00:00+00' -- Fulham v Forest 20:00
+    ELSE kickoff_utc
+  END,
 
-UPDATE matches SET home_team = 'Brighton & Hove Albion', away_team = 'Sunderland'
-WHERE id = '20000000-0000-0000-0000-000000000005';
+  -- clear any seeded/accidental results
+  result_home_goals = NULL,
+  result_away_goals = NULL,
+  result_finalized = FALSE
 
-UPDATE matches SET home_team = 'Manchester City', away_team = 'West Ham United'
-WHERE id = '20000000-0000-0000-0000-000000000006';
-
-UPDATE matches SET home_team = 'Wolverhampton Wanderers', away_team = 'Brentford'
-WHERE id = '20000000-0000-0000-0000-000000000007';
-
--- Group B (next 5)
-UPDATE matches SET home_team = 'Tottenham Hotspur', away_team = 'Liverpool'
-WHERE id = '20000000-0000-0000-0000-000000000003';
-
-UPDATE matches SET home_team = 'Everton', away_team = 'Arsenal'
-WHERE id = '20000000-0000-0000-0000-000000000004';
-
-UPDATE matches SET home_team = 'Leeds United', away_team = 'Crystal Palace'
-WHERE id = '20000000-0000-0000-0000-000000000008';
-
-UPDATE matches SET home_team = 'Aston Villa', away_team = 'Manchester United'
-WHERE id = '20000000-0000-0000-0000-000000000009';
-
-UPDATE matches SET home_team = 'Fulham', away_team = 'Nottingham Forest'
-WHERE id = '20000000-0000-0000-0000-000000000010';
+WHERE id IN (
+  '20000000-0000-0000-0000-000000000001',
+  '20000000-0000-0000-0000-000000000002',
+  '20000000-0000-0000-0000-000000000003',
+  '20000000-0000-0000-0000-000000000004',
+  '20000000-0000-0000-0000-000000000005',
+  '20000000-0000-0000-0000-000000000006',
+  '20000000-0000-0000-0000-000000000007',
+  '20000000-0000-0000-0000-000000000008',
+  '20000000-0000-0000-0000-000000000009',
+  '20000000-0000-0000-0000-000000000010'
+);
 
 `;
 
