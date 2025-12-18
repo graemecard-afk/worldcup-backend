@@ -62,36 +62,40 @@ INSERT INTO matches (
   ('20000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','GROUP','Group B','Sierra','Tango','2026-06-12 00:00:00+00','Stadium 2')
 ON CONFLICT (id) DO NOTHING;
 -- =========================
--- UPDATE team names to Premier League fixtures
+-- UPDATE team names to real Premier League fixtures
+-- Sat–Mon 20–22
 -- =========================
-UPDATE matches SET home_team = 'Arsenal', away_team = 'Chelsea'
+
+-- Group A (first 5)
+UPDATE matches SET home_team = 'Newcastle United', away_team = 'Chelsea'
 WHERE id = '20000000-0000-0000-0000-000000000001';
 
-UPDATE matches SET home_team = 'Liverpool', away_team = 'Manchester United'
+UPDATE matches SET home_team = 'Bournemouth', away_team = 'Burnley'
 WHERE id = '20000000-0000-0000-0000-000000000002';
 
-UPDATE matches SET home_team = 'Manchester City', away_team = 'Tottenham Hotspur'
+UPDATE matches SET home_team = 'Brighton & Hove Albion', away_team = 'Sunderland'
 WHERE id = '20000000-0000-0000-0000-000000000005';
 
-UPDATE matches SET home_team = 'Newcastle United', away_team = 'Aston Villa'
+UPDATE matches SET home_team = 'Manchester City', away_team = 'West Ham United'
 WHERE id = '20000000-0000-0000-0000-000000000006';
 
-UPDATE matches SET home_team = 'Brighton & Hove Albion', away_team = 'West Ham United'
+UPDATE matches SET home_team = 'Wolverhampton Wanderers', away_team = 'Brentford'
 WHERE id = '20000000-0000-0000-0000-000000000007';
 
-UPDATE matches SET home_team = 'Everton', away_team = 'Wolverhampton Wanderers'
+-- Group B (next 5)
+UPDATE matches SET home_team = 'Tottenham Hotspur', away_team = 'Liverpool'
 WHERE id = '20000000-0000-0000-0000-000000000003';
 
-UPDATE matches SET home_team = 'Crystal Palace', away_team = 'Fulham'
+UPDATE matches SET home_team = 'Everton', away_team = 'Arsenal'
 WHERE id = '20000000-0000-0000-0000-000000000004';
 
-UPDATE matches SET home_team = 'Brentford', away_team = 'Bournemouth'
+UPDATE matches SET home_team = 'Leeds United', away_team = 'Crystal Palace'
 WHERE id = '20000000-0000-0000-0000-000000000008';
 
-UPDATE matches SET home_team = 'Nottingham Forest', away_team = 'Burnley'
+UPDATE matches SET home_team = 'Aston Villa', away_team = 'Manchester United'
 WHERE id = '20000000-0000-0000-0000-000000000009';
 
-UPDATE matches SET home_team = 'Sheffield United', away_team = 'Luton Town'
+UPDATE matches SET home_team = 'Fulham', away_team = 'Nottingham Forest'
 WHERE id = '20000000-0000-0000-0000-000000000010';
 
 `;
