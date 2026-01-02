@@ -30,22 +30,41 @@ matchesRouter.post('/:matchId/result', authMiddleware, adminOnly, async (req, re
   const { matchId } = req.params;
   const { home_goals, away_goals } = req.body;
 
-  if (
-    typeof home_goals !== 'number' ||
-    typeof away_goals !== 'number'
-  ) {
+  if (typeof home_goals !== 'number' || typeof away_goals !== 'number') {
     return res.status(400).json({ error: 'Scores must be numbers' });
   }
 
   try {
-    await query(
+    // Check current state
+    const existing = await query(
+      `SELECT result_finalized
+       FROM matches
+       WHERE id = $1`,
+      [matchId]
+    );
+
+    if (existing.rowCount === 0) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    if (existing.rows[0].result_finalized) {
+      return res.status(409).json({ error: 'Match already finalized' });
+    }
+
+    // Finalize once
+    const updated = await query(
       `UPDATE matches
        SET result_home_goals = $1,
            result_away_goals = $2,
            result_finalized = TRUE
-       WHERE id = $3`,
+       WHERE id = $3
+         AND result_finalized = FALSE`,
       [home_goals, away_goals, matchId]
     );
+
+    if (updated.rowCount === 0) {
+      return res.status(409).json({ error: 'Match already finalized' });
+    }
 
     res.json({ ok: true });
   } catch (err) {
@@ -53,6 +72,7 @@ matchesRouter.post('/:matchId/result', authMiddleware, adminOnly, async (req, re
     res.status(500).json({ error: 'Failed to save result' });
   }
 });
+
 
 // Admin: unfinalise a match (make editable again)
 matchesRouter.post('/:matchId/unfinalise', authMiddleware, adminOnly, async (req, res) => {
