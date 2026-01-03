@@ -113,11 +113,7 @@ SET
     ELSE kickoff_utc
   END,
 
-  -- clear any seeded/accidental results
-  result_home_goals = NULL,
-  result_away_goals = NULL,
-  result_finalized = FALSE
-
+  
 WHERE id IN (
   '20000000-0000-0000-0000-000000000001',
   '20000000-0000-0000-0000-000000000002',
