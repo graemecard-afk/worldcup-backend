@@ -135,6 +135,17 @@ WHERE id IN (
 
 export async function ensureSchema() {
   console.log('Ensuring database schema exists...');
-  await query(SCHEMA_SQL);
-  console.log('Schema ensured and seed data applied.');
+
+  if (process.env.NODE_ENV === 'production') {
+    // In production, do NOT wipe results — only ensure tables exist
+    await query(SCHEMA_SQL.replace(
+      /-- clear any seeded[\\s\\S]*?\\);/m,
+      ''
+    ));
+  } else {
+    // In dev/test, allow reseeding & clearing
+    await query(SCHEMA_SQL);
+  }
+
+  console.log('Schema ensured.');
 }
