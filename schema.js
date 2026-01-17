@@ -2,6 +2,20 @@ import { query } from './db.js';
 
 const SCHEMA_SQL = `
 -- =========================
+-- USERS
+-- =========================
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  is_admin BOOLEAN DEFAULT FALSE,
+  payment_status TEXT DEFAULT 'none'
+);
+
+
+-- =========================
 -- TOURNAMENTS
 -- =========================
 CREATE TABLE IF NOT EXISTS tournaments (
