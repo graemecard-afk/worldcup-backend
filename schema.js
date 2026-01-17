@@ -14,6 +14,21 @@ CREATE TABLE IF NOT EXISTS users (
   payment_status TEXT DEFAULT 'none'
 );
 
+-- =========================
+-- PREDICTIONS
+-- =========================
+CREATE TABLE IF NOT EXISTS predictions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  match_id UUID NOT NULL REFERENCES matches(id),
+  predicted_home_goals INTEGER NOT NULL,
+  predicted_away_goals INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, match_id)
+);
+
+
+
 
 -- =========================
 -- TOURNAMENTS
