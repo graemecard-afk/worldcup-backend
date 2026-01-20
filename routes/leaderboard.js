@@ -64,7 +64,7 @@ leaderboardRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
     const usersRes = await query(
       `SELECT id, name
        FROM users
-       WHERE id = ANY($1::uuid[])`,
+       WHERE id = ANY($1::int[])`,
       [userIds]
     );
 
