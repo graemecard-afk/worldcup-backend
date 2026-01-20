@@ -26,6 +26,18 @@ CREATE TABLE IF NOT EXISTS predictions (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, match_id)
 );
+-- =========================
+-- PREDICTION HISTORY
+-- =========================
+CREATE TABLE IF NOT EXISTS prediction_history (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  match_id UUID NOT NULL REFERENCES matches(id),
+  predicted_home_goals INTEGER NOT NULL,
+  predicted_away_goals INTEGER NOT NULL,
+  changed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 
 
 
