@@ -110,6 +110,7 @@ INSERT INTO matches (
 -- ===== GROUP B – MONDAY =====
 ('30000000-0000-0000-0000-000000000010','11111111-1111-1111-1111-111111111111','GROUP','Group B','Everton','Leeds','2026-01-19 20:00:00+00','UK')
 ON CONFLICT (id) DO NOTHING;
+`;
 
 
 export async function ensureSchema() {
