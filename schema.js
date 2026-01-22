@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS predictions (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, match_id)
 );
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
 -- =========================
 -- PREDICTION HISTORY
 -- =========================
