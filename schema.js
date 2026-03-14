@@ -13,7 +13,47 @@ CREATE TABLE IF NOT EXISTS users (
   is_admin BOOLEAN DEFAULT FALSE,
   payment_status TEXT DEFAULT 'none'
 );
+-- =========================
+-- TOURNAMENTS
+-- =========================
+CREATE TABLE IF NOT EXISTS tournaments (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  year INTEGER NOT NULL,
+  host_timezone TEXT NOT NULL,
+  group_stage_start TIMESTAMPTZ NOT NULL,
+  group_stage_end TIMESTAMPTZ NOT NULL,
+  knockouts_start TIMESTAMPTZ NOT NULL
+);
 
+INSERT INTO tournaments (
+  id, name, year, host_timezone, group_stage_start, group_stage_end, knockouts_start
+) VALUES (
+  '11111111-1111-1111-1111-111111111111',
+  'Dummy Cup 2026',
+  2026,
+  'UTC',
+  '2026-06-10 10:00:00+00',
+  '2026-06-20 22:00:00+00',
+  '2026-06-21 10:00:00+00'
+)
+ON CONFLICT (id) DO NOTHING;
+-- =========================
+-- MATCHES
+-- =========================
+CREATE TABLE IF NOT EXISTS matches (
+  id UUID PRIMARY KEY,
+  tournament_id UUID NOT NULL REFERENCES tournaments(id),
+  stage TEXT NOT NULL,
+  group_name TEXT,
+  home_team TEXT NOT NULL,
+  away_team TEXT NOT NULL,
+  kickoff_utc TIMESTAMPTZ NOT NULL,
+  venue TEXT,
+  result_home_goals INTEGER,
+  result_away_goals INTEGER,
+  result_finalized BOOLEAN DEFAULT FALSE
+);
 -- =========================
 -- PREDICTIONS
 -- =========================
@@ -45,48 +85,9 @@ CREATE TABLE IF NOT EXISTS prediction_history (
 
 
 
--- =========================
--- TOURNAMENTS
--- =========================
-CREATE TABLE IF NOT EXISTS tournaments (
-  id UUID PRIMARY KEY,
-  name TEXT NOT NULL,
-  year INTEGER NOT NULL,
-  host_timezone TEXT NOT NULL,
-  group_stage_start TIMESTAMPTZ NOT NULL,
-  group_stage_end TIMESTAMPTZ NOT NULL,
-  knockouts_start TIMESTAMPTZ NOT NULL
-);
 
-INSERT INTO tournaments (
-  id, name, year, host_timezone, group_stage_start, group_stage_end, knockouts_start
-) VALUES (
-  '11111111-1111-1111-1111-111111111111',
-  'Dummy Cup 2026',
-  2026,
-  'UTC',
-  '2026-06-10 10:00:00+00',
-  '2026-06-20 22:00:00+00',
-  '2026-06-21 10:00:00+00'
-)
-ON CONFLICT (id) DO NOTHING;
 
--- =========================
--- MATCHES
--- =========================
-CREATE TABLE IF NOT EXISTS matches (
-  id UUID PRIMARY KEY,
-  tournament_id UUID NOT NULL REFERENCES tournaments(id),
-  stage TEXT NOT NULL,
-  group_name TEXT,
-  home_team TEXT NOT NULL,
-  away_team TEXT NOT NULL,
-  kickoff_utc TIMESTAMPTZ NOT NULL,
-  venue TEXT,
-  result_home_goals INTEGER,
-  result_away_goals INTEGER,
-  result_finalized BOOLEAN DEFAULT FALSE
-);
+
 -- =========================
 -- UPDATE MATCHES FOR LIVE WEEKEND FIXTURES (SAFE)
 -- =========================
