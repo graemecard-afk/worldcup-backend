@@ -30,7 +30,7 @@ INSERT INTO tournaments (
   id, name, year, host_timezone, group_stage_start, group_stage_end, knockouts_start
 ) VALUES (
   '11111111-1111-1111-1111-111111111111',
-  'Dummy Cup 2026',
+  'FIFA Men''s World Cup 2026',
   2026,
   'UTC',
   '2026-06-10 10:00:00+00',
@@ -38,6 +38,9 @@ INSERT INTO tournaments (
   '2026-06-21 10:00:00+00'
 )
 ON CONFLICT (id) DO NOTHING;
+UPDATE tournaments
+SET name = 'FIFA Men''s World Cup 2026'
+WHERE id = '11111111-1111-1111-1111-111111111111';
 -- =========================
 -- MATCHES
 -- =========================
