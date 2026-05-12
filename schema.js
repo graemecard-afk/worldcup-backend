@@ -811,15 +811,6 @@ CREATE TABLE IF NOT EXISTS prediction_history (
   changed_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-
-
-
-
-
-
-
--- =========================
--
 `;
 
 export async function ensureSchema() {
