@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS matches (
   result_finalized BOOLEAN DEFAULT FALSE
 );
 
+-- Remove old rehearsal fixtures
+DELETE FROM matches
+WHERE id::text LIKE '20000000-%';
 
 -- =========================
 -- SEED GROUP STAGE MATCHES (WORLD CUP 2026)
