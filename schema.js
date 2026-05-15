@@ -957,6 +957,9 @@ INSERT INTO matches (
     'TBD'
   )
 ON CONFLICT (id) DO NOTHING;
+UPDATE matches
+SET home_team = '2A'
+WHERE id = '40000000-0000-0000-0000-000000000073';
 -- =========================
 -- PREDICTIONS
 -- =========================
