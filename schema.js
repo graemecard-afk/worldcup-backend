@@ -801,7 +801,7 @@ INSERT INTO matches (
     '11111111-1111-1111-1111-111111111111',
     'Round of 32',
     'M73',
-    'Mexico',
+    '2A',
     '2B',
     '2026-06-29 07:00:00+00',
     'TBD'
@@ -957,9 +957,6 @@ INSERT INTO matches (
     'TBD'
   )
 ON CONFLICT (id) DO NOTHING;
-UPDATE matches
-SET home_team = 'Mexico'
-WHERE id = '40000000-0000-0000-0000-000000000073';
 -- =========================
 -- PREDICTIONS
 -- =========================
