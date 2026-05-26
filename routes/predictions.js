@@ -23,7 +23,11 @@ async function isEditable(matchId) {
 // Upsert prediction for a specific match
 predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
   const { matchId } = req.params;
-  const { predicted_home_goals, predicted_away_goals } = req.body;
+  const {
+  predicted_home_goals,
+  predicted_away_goals,
+  predicted_advancing_team,
+} = req.body;
 
   if (
     typeof predicted_home_goals !== 'number' ||
@@ -41,9 +45,9 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
     // Always insert into history for audit
     await query(
       `INSERT INTO prediction_history
-       (user_id, match_id, predicted_home_goals, predicted_away_goals)
-       VALUES ($1, $2, $3, $4)`,
-      [req.user.id, matchId, predicted_home_goals, predicted_away_goals]
+       (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [req.user.id, matchId, predicted_home_goals, predicted_away_goals, predicted_advancing_team ]
     );
 
     // Upsert current prediction
@@ -55,18 +59,19 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
     if (existing.rowCount === 0) {
       await query(
         `INSERT INTO predictions
-         (user_id, match_id, predicted_home_goals, predicted_away_goals)
-         VALUES ($1, $2, $3, $4)`,
-        [req.user.id, matchId, predicted_home_goals, predicted_away_goals]
+         (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [req.user.id, matchId, predicted_home_goals, predicted_away_goals, predicted_advancing_team]
       );
     } else {
       await query(
         `UPDATE predictions
          SET predicted_home_goals = $1,
              predicted_away_goals = $2,
+             predicted_advancing_team = $3,
              updated_at = now()
-         WHERE user_id = $3 AND match_id = $4`,
-        [predicted_home_goals, predicted_away_goals, req.user.id, matchId]
+         WHERE user_id = $4 AND match_id = $5`,
+        [predicted_home_goals, predicted_away_goals, predicted_advancing_team, req.user.id, matchId]
       );
     }
 
@@ -87,6 +92,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
          p.match_id,
          p.predicted_home_goals,
          p.predicted_away_goals,
+         p.predicted_advancing_team,
          m.result_home_goals,
          m.result_away_goals,
          m.result_finalized
@@ -106,6 +112,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
           match_id: r.match_id,
           predicted_home_goals: r.predicted_home_goals,
           predicted_away_goals: r.predicted_away_goals,
+          predicted_advancing_team: r.predicted_advancing_team,
           points: null,
         };
       }
@@ -121,6 +128,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
           match_id: r.match_id,
           predicted_home_goals: r.predicted_home_goals,
           predicted_away_goals: r.predicted_away_goals,
+          predicted_advancing_team: r.predicted_advancing_team,
           points: null,
         };
       }
@@ -137,6 +145,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
         match_id: r.match_id,
         predicted_home_goals: r.predicted_home_goals,
         predicted_away_goals: r.predicted_away_goals,
+        predicted_advancing_team: r.predicted_advancing_team,
         points,
       };
     });
