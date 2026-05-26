@@ -1140,6 +1140,8 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 ALTER TABLE predictions
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS predicted_advancing_team TEXT;
 
 -- =========================
 -- PREDICTION HISTORY
