@@ -86,3 +86,37 @@ authRouter.get('/me', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Failed to load user' });
   }
 });
+// TEMPORARY ADMIN PASSWORD RESET - REMOVE AFTER USE
+authRouter.post('/temporary-admin-reset', async (req, res) => {
+  const { resetSecret, email, newPassword } = req.body;
+
+  if (!process.env.TEMP_ADMIN_RESET_SECRET) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+
+  if (resetSecret !== process.env.TEMP_ADMIN_RESET_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: 'Missing email or newPassword' });
+  }
+
+  try {
+    const passwordHash = await hashPassword(newPassword);
+
+    const result = await query(
+      'UPDATE users SET password_hash = $1 WHERE lower(email) = lower($2) RETURNING id, email',
+      [passwordHash, email]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ ok: true, email: result.rows[0].email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Password reset failed' });
+  }
+});
