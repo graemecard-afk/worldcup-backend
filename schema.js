@@ -1154,6 +1154,8 @@ CREATE TABLE IF NOT EXISTS prediction_history (
   predicted_away_goals INTEGER NOT NULL,
   changed_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE prediction_history
+ADD COLUMN IF NOT EXISTS predicted_advancing_team TEXT;
 
 `;
 
