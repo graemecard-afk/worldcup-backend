@@ -99,3 +99,38 @@ matchesRouter.post('/:matchId/unfinalise', authMiddleware, adminOnly, async (req
     res.status(500).json({ error: 'Failed to unfinalise match' });
   }
 });
+// Admin: update knockout team label
+matchesRouter.post('/:matchId/team-label', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    const { slot, team } = req.body;
+
+    if (!['home_team', 'away_team'].includes(slot)) {
+      return res.status(400).json({ error: 'slot must be home_team or away_team' });
+    }
+
+    if (typeof team !== 'string' || team.trim() === '') {
+      return res.status(400).json({ error: 'team is required' });
+    }
+
+   const column = slot === 'home_team' ? 'home_team' : 'away_team';
+
+   const result = await query(
+  `UPDATE matches
+   SET ${column} = $1
+   WHERE id = $2
+     AND stage IN ('Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Third-place Play-off', 'Final')
+   RETURNING id, stage, group_name, home_team, away_team`,
+  [team.trim(), matchId]
+);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Knockout match not found' });
+    }
+
+    res.json({ ok: true, match: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update team label' });
+  }
+});
