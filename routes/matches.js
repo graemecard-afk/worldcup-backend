@@ -11,7 +11,7 @@ matchesRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
   try {
     const result = await query(
       `SELECT id, stage, group_name, home_team, away_team, kickoff_utc,
-              venue, result_home_goals, result_away_goals, result_finalized
+              venue, result_home_goals, result_away_goals, result_finalized, actual_advancing_team
        FROM matches
        WHERE tournament_id = $1
        ORDER BY kickoff_utc ASC`,
@@ -28,7 +28,7 @@ matchesRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
 // Admin: set final result for a match
 matchesRouter.post('/:matchId/result', authMiddleware, adminOnly, async (req, res) => {
   const { matchId } = req.params;
-  const { home_goals, away_goals } = req.body;
+  const { home_goals, away_goals, actual_advancing_team } = req.body;
 
   if (typeof home_goals !== 'number' || typeof away_goals !== 'number') {
     return res.status(400).json({ error: 'Scores must be numbers' });
@@ -54,12 +54,13 @@ matchesRouter.post('/:matchId/result', authMiddleware, adminOnly, async (req, re
     // Finalize once
     const updated = await query(
       `UPDATE matches
-       SET result_home_goals = $1,
-           result_away_goals = $2,
-           result_finalized = TRUE
-       WHERE id = $3
-         AND result_finalized = FALSE`,
-      [home_goals, away_goals, matchId]
+ SET result_home_goals = $1,
+     result_away_goals = $2,
+     actual_advancing_team = $3,
+     result_finalized = TRUE
+ WHERE id = $4
+   AND result_finalized = FALSE`,
+[home_goals, away_goals, actual_advancing_team || null, matchId]
     );
 
     if (updated.rowCount === 0) {
@@ -80,12 +81,13 @@ matchesRouter.post('/:matchId/unfinalise', authMiddleware, adminOnly, async (req
     const { matchId } = req.params;
 
     const result = await query(
-      `UPDATE matches
-       SET result_home_goals = NULL,
-           result_away_goals = NULL,
-           result_finalized = false
-       WHERE id = $1
-       RETURNING id, result_home_goals, result_away_goals, result_finalized`,
+     `UPDATE matches
+ SET result_home_goals = NULL,
+     result_away_goals = NULL,
+     actual_advancing_team = NULL,
+     result_finalized = false
+ WHERE id = $1
+ RETURNING id, result_home_goals, result_away_goals, actual_advancing_team, result_finalized`,
       [matchId]
     );
 
