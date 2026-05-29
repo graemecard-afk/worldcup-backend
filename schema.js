@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS matches (
   result_away_goals INTEGER,
   result_finalized BOOLEAN DEFAULT FALSE
 );
+ALTER TABLE matches
+ADD COLUMN IF NOT EXISTS actual_advancing_team TEXT;
 
 -- Remove old rehearsal fixtures
 DELETE FROM matches
