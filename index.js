@@ -7,6 +7,7 @@ import { matchesRouter } from './routes/matches.js';
 import { predictionsRouter } from './routes/predictions.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { tournamentsRouter } from './routes/tournaments.js';
+import { adminUsersRouter } from './routes/adminUsers.js';
 import { ensureSchema } from './schema.js';
 
 dotenv.config();
@@ -25,6 +26,7 @@ app.use('/matches', matchesRouter);
 app.use('/predictions', predictionsRouter);
 app.use('/leaderboard', leaderboardRouter);
 app.use('/tournaments', tournamentsRouter);
+app.use('/admin/users', adminUsersRouter);
 
 const PORT = process.env.PORT || 4000;
 
