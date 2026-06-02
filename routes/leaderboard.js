@@ -12,7 +12,7 @@ leaderboardRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
   try {
     // 1) Get all finalised matches in this tournament
     const matchesRes = await query(
-      `SELECT id, result_home_goals, result_away_goals
+             `SELECT id, stage, result_home_goals, result_away_goals
        FROM matches
        WHERE tournament_id = $1
          AND result_finalized = TRUE`,
@@ -37,26 +37,44 @@ leaderboardRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
 
     const preds = predsRes.rows;
 
-    // 3) Accumulate scores per user
-    const userPoints = new Map(); // user_id -> total points
+         // 3) Accumulate scores per user, separated by competition phase
+      const groupStagePointsByUser = new Map();
+      const knockoutPointsByUser = new Map();
 
-    for (const pred of preds) {
-      const match = matches.find(m => m.id === pred.match_id);
-      if (!match) continue;
+      const knockoutStages = new Set([
+        'Round of 32',
+        'Round of 16',
+        'Quarter-final',
+        'Semi-final',
+        'Third-place Play-off',
+        'Final',
+      ]);
 
-      const basePoints = scoreMatchPrediction({
-        actualHome: match.result_home_goals,
-        actualAway: match.result_away_goals,
-        predictedHome: pred.predicted_home_goals,
-        predictedAway: pred.predicted_away_goals,
-      });
+      for (const pred of preds) {
+        const match = matches.find(m => m.id === pred.match_id);
+        if (!match) continue;
 
-      const prev = userPoints.get(pred.user_id) || 0;
-      userPoints.set(pred.user_id, prev + basePoints);
-    }
+        const basePoints = scoreMatchPrediction({
+          actualHome: match.result_home_goals,
+          actualAway: match.result_away_goals,
+          predictedHome: pred.predicted_home_goals,
+          predictedAway: pred.predicted_away_goals,
+        });
+
+        const isKnockout = knockoutStages.has(match.stage);
+        const targetMap = isKnockout ? knockoutPointsByUser : groupStagePointsByUser;
+        const prev = targetMap.get(pred.user_id) || 0;
+
+        targetMap.set(pred.user_id, prev + basePoints);
+      }
+
+      const allUserIds = new Set([
+        ...groupStagePointsByUser.keys(),
+        ...knockoutPointsByUser.keys(),
+      ]);
 
     // 4) Fetch user names for display
-    const userIds = [...userPoints.keys()];
+   const userIds = [...allUserIds];
     if (userIds.length === 0) {
       return res.json([]);
     }
@@ -70,17 +88,23 @@ leaderboardRouter.get('/:tournamentId', authMiddleware, async (req, res) => {
 
     const users = usersRes.rows;
 
-    const leaderboard = userIds.map(uid => {
-      const user = users.find(u => u.id === uid);
-      return {
-        user_id: uid,
-        name: user?.name || 'Unknown',
-        total_points: userPoints.get(uid),
-      };
-    });
+         const leaderboard = userIds.map(uid => {
+        const user = users.find(u => u.id === uid);
+        const groupStagePoints = groupStagePointsByUser.get(uid) || 0;
+        const knockoutPoints = knockoutPointsByUser.get(uid) || 0;
+        const totalPoints = groupStagePoints + knockoutPoints;
 
-    // 5) Sort by total_points descending
-    leaderboard.sort((a, b) => b.total_points - a.total_points);
+        return {
+          user_id: uid,
+          name: user?.name || 'Unknown',
+          group_stage_points: groupStagePoints,
+          knockout_points: knockoutPoints,
+          total_points: totalPoints,
+        };
+      });
+
+      // 5) Sort by total_points descending
+      leaderboard.sort((a, b) => b.total_points - a.total_points);
 
     res.json(leaderboard);
   } catch (err) {
