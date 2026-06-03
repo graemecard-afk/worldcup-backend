@@ -12,12 +12,14 @@ leaderboardRouter.get("/:tournamentId", authMiddleware, async (req, res) => {
   try {
     // 1) Get all finalised matches in this tournament
     const matchesRes = await query(
-      `SELECT id,
-          stage,
-          result_home_goals,
-          result_away_goals,
-          actual_advancing_team
-   FROM matches
+     `SELECT id,
+    stage,
+    home_team,
+    away_team,
+    result_home_goals,
+    result_away_goals,
+    actual_advancing_team
+FROM matches
    WHERE tournament_id = $1
      AND result_finalized = TRUE`,
       [tournamentId],
@@ -78,14 +80,24 @@ leaderboardRouter.get("/:tournamentId", authMiddleware, async (req, res) => {
       const isKnockout = knockoutStages.has(match.stage);
       let totalForMatch = basePoints;
 
-      if (
-        isKnockout &&
-        pred.predicted_advancing_team &&
-        match.actual_advancing_team &&
-        pred.predicted_advancing_team === match.actual_advancing_team
-      ) {
-        totalForMatch += advancementBonusByStage[match.stage] || 0;
-      }
+      let actualAdvancingTeam = match.actual_advancing_team;
+
+if (!actualAdvancingTeam) {
+  if (match.result_home_goals > match.result_away_goals) {
+    actualAdvancingTeam = match.home_team;
+  } else if (match.result_away_goals > match.result_home_goals) {
+    actualAdvancingTeam = match.away_team;
+  }
+}
+
+if (
+  isKnockout &&
+  pred.predicted_advancing_team &&
+  actualAdvancingTeam &&
+  pred.predicted_advancing_team === actualAdvancingTeam
+) {
+  totalForMatch += advancementBonusByStage[match.stage] || 0;
+}
 
       const targetMap = isKnockout
         ? knockoutPointsByUser
