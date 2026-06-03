@@ -90,11 +90,21 @@ if (!actualAdvancingTeam) {
   }
 }
 
+let predictedAdvancingTeam = pred.predicted_advancing_team;
+
+if (!predictedAdvancingTeam) {
+  if (pred.predicted_home_goals > pred.predicted_away_goals) {
+    predictedAdvancingTeam = match.home_team;
+  } else if (pred.predicted_away_goals > pred.predicted_home_goals) {
+    predictedAdvancingTeam = match.away_team;
+  }
+}
+
 if (
   isKnockout &&
-  pred.predicted_advancing_team &&
+  predictedAdvancingTeam &&
   actualAdvancingTeam &&
-  pred.predicted_advancing_team === actualAdvancingTeam
+  predictedAdvancingTeam === actualAdvancingTeam
 ) {
   totalForMatch += advancementBonusByStage[match.stage] || 0;
 }
