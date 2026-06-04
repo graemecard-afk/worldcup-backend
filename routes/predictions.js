@@ -89,13 +89,17 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
   try {
     const result = await query(
       `SELECT
-         p.match_id,
-         p.predicted_home_goals,
-         p.predicted_away_goals,
-         p.predicted_advancing_team,
-         m.result_home_goals,
-         m.result_away_goals,
-         m.result_finalized
+   p.match_id,
+   p.predicted_home_goals,
+   p.predicted_away_goals,
+   p.predicted_advancing_team,
+   m.stage,
+   m.home_team,
+   m.away_team,
+   m.result_home_goals,
+   m.result_away_goals,
+   m.actual_advancing_team,
+   m.result_finalized
        FROM predictions p
        JOIN matches m ON m.id = p.match_id
        WHERE p.user_id = $1
@@ -135,11 +139,45 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
 
       let points = 0;
 
-      // 10 points per correct item (4 items = 40 total)
-      if (outcome(ph, pa) === outcome(ah, aa)) points += 10;       // correct outcome
-      if ((ph - pa) === (ah - aa)) points += 10;                   // correct goal difference
-      if (ph === ah) points += 10;                                 // correct home goals
-      if (pa === aa) points += 10;                                 // correct away goals
+// 10 points per correct item (4 items = 40 total)
+if (outcome(ph, pa) === outcome(ah, aa)) points += 10;       // correct outcome
+if ((ph - pa) === (ah - aa)) points += 10;                   // correct goal difference
+if (ph === ah) points += 10;                                 // correct home goals
+if (pa === aa) points += 10;                                 // correct away goals
+
+const advancementBonusByStage = {
+  'Round of 32': 10,
+  'Round of 16': 20,
+  'Quarter-final': 40,
+  'Semi-final': 80,
+  'Third-place Play-off': 120,
+  Final: 160,
+};
+
+const knockoutStages = new Set(Object.keys(advancementBonusByStage));
+
+let actualAdvancingTeam = r.actual_advancing_team;
+
+if (!actualAdvancingTeam) {
+  if (ah > aa) actualAdvancingTeam = r.home_team;
+  else if (aa > ah) actualAdvancingTeam = r.away_team;
+}
+
+let predictedAdvancingTeam = r.predicted_advancing_team;
+
+if (!predictedAdvancingTeam) {
+  if (ph > pa) predictedAdvancingTeam = r.home_team;
+  else if (pa > ph) predictedAdvancingTeam = r.away_team;
+}
+
+if (
+  knockoutStages.has(r.stage) &&
+  predictedAdvancingTeam &&
+  actualAdvancingTeam &&
+  predictedAdvancingTeam === actualAdvancingTeam
+) {
+  points += advancementBonusByStage[r.stage] || 0;
+}
 
       return {
         match_id: r.match_id,
