@@ -101,6 +101,25 @@ matchesRouter.post('/:matchId/unfinalise', authMiddleware, adminOnly, async (req
     res.status(500).json({ error: 'Failed to unfinalise match' });
   }
 });
+// Admin: unfinalise all knockout matches
+matchesRouter.post('/knockouts/unfinalise-all', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE matches
+       SET result_home_goals = NULL,
+           result_away_goals = NULL,
+           actual_advancing_team = NULL,
+           result_finalized = false
+       WHERE stage IN ('Round of 32', 'Round of 16', 'Quarter-final', 'Semi-final', 'Third-place Play-off', 'Final')
+       RETURNING id`
+    );
+
+    res.json({ ok: true, count: result.rowCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to unfinalise knockout matches' });
+  }
+});
 // Admin: update knockout team label
 matchesRouter.post('/:matchId/team-label', authMiddleware, adminOnly, async (req, res) => {
   try {
