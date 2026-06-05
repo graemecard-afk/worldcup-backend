@@ -1,8 +1,27 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authMiddleware } from '../auth.js';
+import { scoreMatchPrediction } from '../scoring.js';
 
 export const predictionsRouter = express.Router();
+
+const knockoutStages = new Set([
+  'Round of 32',
+  'Round of 16',
+  'Quarter-final',
+  'Semi-final',
+  'Third-place Play-off',
+  'Final',
+]);
+
+const advancementBonusByStage = {
+  'Round of 32': 10,
+  'Round of 16': 20,
+  'Quarter-final': 40,
+  'Semi-final': 80,
+  'Third-place Play-off': 120,
+  Final: 160,
+};
 
 // Helper: is match still editable? (now < kickoff - 2h)
 async function isEditable(matchId) {
@@ -15,7 +34,7 @@ async function isEditable(matchId) {
 
   const kickoff = new Date(result.rows[0].kickoff_utc);
   const now = new Date();
-  const cutoff = new Date(kickoff.getTime() - 2 * 60 * 60 * 1000); // 2 hours before
+  const cutoff = new Date(kickoff.getTime() - 2 * 60 * 60 * 1000);
 
   return now < cutoff;
 }
@@ -24,10 +43,10 @@ async function isEditable(matchId) {
 predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
   const { matchId } = req.params;
   const {
-  predicted_home_goals,
-  predicted_away_goals,
-  predicted_advancing_team,
-} = req.body;
+    predicted_home_goals,
+    predicted_away_goals,
+    predicted_advancing_team,
+  } = req.body;
 
   if (
     typeof predicted_home_goals !== 'number' ||
@@ -42,15 +61,19 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Prediction window closed for this match' });
     }
 
-    // Always insert into history for audit
     await query(
       `INSERT INTO prediction_history
        (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
        VALUES ($1, $2, $3, $4, $5)`,
-      [req.user.id, matchId, predicted_home_goals, predicted_away_goals, predicted_advancing_team ]
+      [
+        req.user.id,
+        matchId,
+        predicted_home_goals,
+        predicted_away_goals,
+        predicted_advancing_team,
+      ]
     );
 
-    // Upsert current prediction
     const existing = await query(
       'SELECT id FROM predictions WHERE user_id = $1 AND match_id = $2',
       [req.user.id, matchId]
@@ -61,7 +84,13 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
         `INSERT INTO predictions
          (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
          VALUES ($1, $2, $3, $4, $5)`,
-        [req.user.id, matchId, predicted_home_goals, predicted_away_goals, predicted_advancing_team]
+        [
+          req.user.id,
+          matchId,
+          predicted_home_goals,
+          predicted_away_goals,
+          predicted_advancing_team,
+        ]
       );
     } else {
       await query(
@@ -71,7 +100,13 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
              predicted_advancing_team = $3,
              updated_at = now()
          WHERE user_id = $4 AND match_id = $5`,
-        [predicted_home_goals, predicted_away_goals, predicted_advancing_team, req.user.id, matchId]
+        [
+          predicted_home_goals,
+          predicted_away_goals,
+          predicted_advancing_team,
+          req.user.id,
+          matchId,
+        ]
       );
     }
 
@@ -93,8 +128,12 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
          p.predicted_home_goals,
          p.predicted_away_goals,
          p.predicted_advancing_team,
+         m.stage,
+         m.home_team,
+         m.away_team,
          m.result_home_goals,
          m.result_away_goals,
+         m.actual_advancing_team,
          m.result_finalized
        FROM predictions p
        JOIN matches m ON m.id = p.match_id
@@ -103,10 +142,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
       [req.user.id, tournamentId]
     );
 
-    const outcome = (h, a) => (h > a ? 'H' : h < a ? 'A' : 'D');
-
     const rowsWithPoints = result.rows.map(r => {
-      // Not finalised yet → no points
       if (!r.result_finalized) {
         return {
           match_id: r.match_id,
@@ -122,7 +158,6 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
       const ah = r.result_home_goals;
       const aa = r.result_away_goals;
 
-      // Defensive: if results missing, no points
       if (ah === null || aa === null || ph === null || pa === null) {
         return {
           match_id: r.match_id,
@@ -133,13 +168,35 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
         };
       }
 
-      let points = 0;
+      let points = scoreMatchPrediction({
+        actualHome: ah,
+        actualAway: aa,
+        predictedHome: ph,
+        predictedAway: pa,
+      });
 
-      // 10 points per correct item (4 items = 40 total)
-      if (outcome(ph, pa) === outcome(ah, aa)) points += 10;       // correct outcome
-      if ((ph - pa) === (ah - aa)) points += 10;                   // correct goal difference
-      if (ph === ah) points += 10;                                 // correct home goals
-      if (pa === aa) points += 10;                                 // correct away goals
+      const isKnockout = knockoutStages.has(r.stage);
+
+      let actualAdvancingTeam = r.actual_advancing_team;
+      if (!actualAdvancingTeam) {
+        if (ah > aa) actualAdvancingTeam = r.home_team;
+        else if (aa > ah) actualAdvancingTeam = r.away_team;
+      }
+
+      let predictedAdvancingTeam = r.predicted_advancing_team;
+      if (!predictedAdvancingTeam) {
+        if (ph > pa) predictedAdvancingTeam = r.home_team;
+        else if (pa > ph) predictedAdvancingTeam = r.away_team;
+      }
+
+      if (
+        isKnockout &&
+        predictedAdvancingTeam &&
+        actualAdvancingTeam &&
+        predictedAdvancingTeam === actualAdvancingTeam
+      ) {
+        points += advancementBonusByStage[r.stage] || 0;
+      }
 
       return {
         match_id: r.match_id,
@@ -156,4 +213,3 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
     res.status(500).json({ error: 'Failed to load predictions' });
   }
 });
-
