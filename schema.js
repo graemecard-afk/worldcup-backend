@@ -1144,6 +1144,10 @@ ALTER TABLE predictions
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE predictions
 ADD COLUMN IF NOT EXISTS predicted_advancing_team TEXT;
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS predicted_home_team TEXT;
+ALTER TABLE predictions
+ADD COLUMN IF NOT EXISTS predicted_away_team TEXT;
 
 -- =========================
 -- PREDICTION HISTORY
@@ -1158,6 +1162,10 @@ CREATE TABLE IF NOT EXISTS prediction_history (
 );
 ALTER TABLE prediction_history
 ADD COLUMN IF NOT EXISTS predicted_advancing_team TEXT;
+ALTER TABLE prediction_history
+ADD COLUMN IF NOT EXISTS predicted_home_team TEXT;
+ALTER TABLE prediction_history
+ADD COLUMN IF NOT EXISTS predicted_away_team TEXT;
 
 `;
 
