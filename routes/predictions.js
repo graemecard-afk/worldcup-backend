@@ -7,6 +7,26 @@ import {
 } from '../scoring.js';
 
 export const predictionsRouter = express.Router();
+function getMatchNumber(value) {
+  const found = String(value || '').match(/\d+/);
+  return found ? Number(found[0]) : null;
+}
+
+function resolveActualTeam(team, matchesByNumber) {
+  const sourceMatchNumber = getMatchNumber(team);
+
+  if (!sourceMatchNumber) {
+    return team;
+  }
+
+  const sourceMatch = matchesByNumber.get(sourceMatchNumber);
+
+  if (!sourceMatch) {
+    return team;
+  }
+
+  return sourceMatch.actual_advancing_team || team;
+}
 
 const knockoutStages = new Set([
   'Round of 32',
@@ -159,6 +179,7 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
          p.predicted_advancing_team,
          p.predicted_home_team,
          p.predicted_away_team,
+         m.group_name,
          m.stage,
          m.home_team,
          m.away_team,
@@ -172,6 +193,15 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
          AND m.tournament_id = $2`,
       [req.user.id, tournamentId]
     );
+          const matchesByNumber = new Map();
+
+      result.rows.forEach(r => {
+        const matchNumber = getMatchNumber(r.group_name);
+
+        if (matchNumber !== null) {
+          matchesByNumber.set(matchNumber, r);
+        }
+      });
 
     const rowsWithPoints = result.rows.map(r => {
       if (!r.result_finalized) {
@@ -207,8 +237,8 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
               actualAway: aa,
               predictedHome: ph,
               predictedAway: pa,
-              actualHomeTeam: r.home_team,
-              actualAwayTeam: r.away_team,
+              actualHomeTeam: resolveActualTeam(r.home_team, matchesByNumber),
+              actualAwayTeam: resolveActualTeam(r.away_team, matchesByNumber),
               predictedHomeTeam: r.predicted_home_team,
               predictedAwayTeam: r.predicted_away_team,
             })

@@ -7,7 +7,26 @@ import {
 } from "../scoring.js";
 
 export const leaderboardRouter = express.Router();
+function getMatchNumber(value) {
+  const found = String(value || "").match(/\d+/);
+  return found ? Number(found[0]) : null;
+}
 
+function resolveActualTeam(team, matchesByNumber) {
+  const sourceMatchNumber = getMatchNumber(team);
+
+  if (!sourceMatchNumber) {
+    return team;
+  }
+
+  const sourceMatch = matchesByNumber.get(sourceMatchNumber);
+
+  if (!sourceMatch) {
+    return team;
+  }
+
+  return sourceMatch.actual_advancing_team || team;
+}
 // Basic group-stage leaderboard
 leaderboardRouter.get("/:tournamentId", authMiddleware, async (req, res) => {
   const { tournamentId } = req.params;
@@ -15,7 +34,8 @@ leaderboardRouter.get("/:tournamentId", authMiddleware, async (req, res) => {
   try {
     // 1) Get all finalised matches in this tournament
     const matchesRes = await query(
-     `SELECT id,
+   `SELECT id,
+    group_name,
     stage,
     home_team,
     away_team,
@@ -29,6 +49,15 @@ FROM matches
     );
 
     const matches = matchesRes.rows;
+          const matchesByNumber = new Map();
+
+      matches.forEach(match => {
+        const matchNumber = getMatchNumber(match.group_name);
+
+        if (matchNumber !== null) {
+          matchesByNumber.set(matchNumber, match);
+        }
+      });
     if (matches.length === 0) {
       return res.json([]); // no results yet
     }
@@ -83,8 +112,8 @@ FROM matches
             actualAway: match.result_away_goals,
             predictedHome: pred.predicted_home_goals,
             predictedAway: pred.predicted_away_goals,
-            actualHomeTeam: match.home_team,
-            actualAwayTeam: match.away_team,
+            actualHomeTeam: resolveActualTeam(match.home_team, matchesByNumber),
+            actualAwayTeam: resolveActualTeam(match.away_team, matchesByNumber),
             predictedHomeTeam: pred.predicted_home_team,
             predictedAwayTeam: pred.predicted_away_team,
           })
