@@ -1,7 +1,10 @@
 import express from 'express';
 import { query } from '../db.js';
 import { authMiddleware } from '../auth.js';
-import { scoreMatchPrediction } from '../scoring.js';
+import {
+  scoreMatchPrediction,
+  scoreKnockoutMatchPrediction,
+} from '../scoring.js';
 
 export const predictionsRouter = express.Router();
 
@@ -154,6 +157,8 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
          p.predicted_home_goals,
          p.predicted_away_goals,
          p.predicted_advancing_team,
+         p.predicted_home_team,
+         p.predicted_away_team,
          m.stage,
          m.home_team,
          m.away_team,
@@ -194,14 +199,25 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
         };
       }
 
-      let points = scoreMatchPrediction({
-        actualHome: ah,
-        actualAway: aa,
-        predictedHome: ph,
-        predictedAway: pa,
-      });
+             const isKnockout = knockoutStages.has(r.stage);
 
-      const isKnockout = knockoutStages.has(r.stage);
+        let points = isKnockout
+          ? scoreKnockoutMatchPrediction({
+              actualHome: ah,
+              actualAway: aa,
+              predictedHome: ph,
+              predictedAway: pa,
+              actualHomeTeam: r.home_team,
+              actualAwayTeam: r.away_team,
+              predictedHomeTeam: r.predicted_home_team,
+              predictedAwayTeam: r.predicted_away_team,
+            })
+          : scoreMatchPrediction({
+              actualHome: ah,
+              actualAway: aa,
+              predictedHome: ph,
+              predictedAway: pa,
+            });
 
       let actualAdvancingTeam = r.actual_advancing_team;
       if (!actualAdvancingTeam) {

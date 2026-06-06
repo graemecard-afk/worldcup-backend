@@ -1,7 +1,10 @@
 import express from "express";
 import { query } from "../db.js";
 import { authMiddleware } from "../auth.js";
-import { scoreMatchPrediction } from "../scoring.js";
+import {
+  scoreMatchPrediction,
+  scoreKnockoutMatchPrediction,
+} from "../scoring.js";
 
 export const leaderboardRouter = express.Router();
 
@@ -34,10 +37,12 @@ FROM matches
 
     // 2) Get all predictions for these matches
     const predsRes = await query(
-      `SELECT p.user_id, p.match_id,
-          p.predicted_home_goals,
-          p.predicted_away_goals,
-          p.predicted_advancing_team
+    `SELECT p.user_id, p.match_id,
+    p.predicted_home_goals,
+    p.predicted_away_goals,
+    p.predicted_advancing_team,
+    p.predicted_home_team,
+    p.predicted_away_team
    FROM predictions p
    WHERE p.match_id = ANY($1::uuid[])`,
       [matchIds],
@@ -70,14 +75,25 @@ FROM matches
       const match = matches.find((m) => m.id === pred.match_id);
       if (!match) continue;
 
-      const basePoints = scoreMatchPrediction({
-        actualHome: match.result_home_goals,
-        actualAway: match.result_away_goals,
-        predictedHome: pred.predicted_home_goals,
-        predictedAway: pred.predicted_away_goals,
-      });
+            const isKnockout = knockoutStages.has(match.stage);
 
-      const isKnockout = knockoutStages.has(match.stage);
+      const basePoints = isKnockout
+        ? scoreKnockoutMatchPrediction({
+            actualHome: match.result_home_goals,
+            actualAway: match.result_away_goals,
+            predictedHome: pred.predicted_home_goals,
+            predictedAway: pred.predicted_away_goals,
+            actualHomeTeam: match.home_team,
+            actualAwayTeam: match.away_team,
+            predictedHomeTeam: pred.predicted_home_team,
+            predictedAwayTeam: pred.predicted_away_team,
+          })
+        : scoreMatchPrediction({
+            actualHome: match.result_home_goals,
+            actualAway: match.result_away_goals,
+            predictedHome: pred.predicted_home_goals,
+            predictedAway: pred.predicted_away_goals,
+          });
       let totalForMatch = basePoints;
 
       let actualAdvancingTeam = match.actual_advancing_team;
