@@ -46,6 +46,8 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
     predicted_home_goals,
     predicted_away_goals,
     predicted_advancing_team,
+    predicted_home_team,
+    predicted_away_team,
   } = req.body;
 
   if (
@@ -62,16 +64,26 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
     }
 
     await query(
-      `INSERT INTO prediction_history
-       (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [
-        req.user.id,
-        matchId,
-        predicted_home_goals,
-        predicted_away_goals,
-        predicted_advancing_team,
-      ]
+     `INSERT INTO prediction_history
+         (
+           user_id,
+           match_id,
+           predicted_home_goals,
+           predicted_away_goals,
+           predicted_advancing_team,
+           predicted_home_team,
+           predicted_away_team
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          req.user.id,
+          matchId,
+          predicted_home_goals,
+          predicted_away_goals,
+          predicted_advancing_team,
+          predicted_home_team,
+          predicted_away_team,
+        ]
     );
 
     const existing = await query(
@@ -81,16 +93,26 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
 
     if (existing.rowCount === 0) {
       await query(
-        `INSERT INTO predictions
-         (user_id, match_id, predicted_home_goals, predicted_away_goals, predicted_advancing_team)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-          req.user.id,
-          matchId,
-          predicted_home_goals,
-          predicted_away_goals,
-          predicted_advancing_team,
-        ]
+          `INSERT INTO predictions
+           (
+             user_id,
+             match_id,
+             predicted_home_goals,
+             predicted_away_goals,
+             predicted_advancing_team,
+             predicted_home_team,
+             predicted_away_team
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user.id,
+            matchId,
+            predicted_home_goals,
+            predicted_away_goals,
+            predicted_advancing_team,
+            predicted_home_team,
+            predicted_away_team,
+          ]
       );
     } else {
       await query(
@@ -98,12 +120,16 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
          SET predicted_home_goals = $1,
              predicted_away_goals = $2,
              predicted_advancing_team = $3,
+             predicted_home_team = $4,
+             predicted_away_team = $5,
              updated_at = now()
-         WHERE user_id = $4 AND match_id = $5`,
+         WHERE user_id = $6 AND match_id = $7`,
         [
           predicted_home_goals,
           predicted_away_goals,
           predicted_advancing_team,
+          predicted_home_team,
+          predicted_away_team,
           req.user.id,
           matchId,
         ]
