@@ -5,6 +5,7 @@ import {
   scoreMatchPrediction,
   scoreKnockoutMatchPrediction,
 } from "../scoring.js";
+import { scoreThirdPlacePrediction } from "../scoringThirdPlace.js";
 
 export const leaderboardRouter = express.Router();
 function getMatchNumber(value) {
@@ -26,6 +27,35 @@ function resolveActualTeam(team, matchesByNumber) {
   }
 
   return sourceMatch.actual_advancing_team || team;
+}
+function resolveActualMatchTeams(match, matchesByNumber) {
+  const matchNumber = getMatchNumber(match.group_name);
+
+  if (matchNumber === 103) {
+    const semiOne = matchesByNumber.get(101);
+    const semiTwo = matchesByNumber.get(102);
+
+    const semiOneHome = resolveActualTeam(semiOne?.home_team, matchesByNumber);
+    const semiOneAway = resolveActualTeam(semiOne?.away_team, matchesByNumber);
+    const semiTwoHome = resolveActualTeam(semiTwo?.home_team, matchesByNumber);
+    const semiTwoAway = resolveActualTeam(semiTwo?.away_team, matchesByNumber);
+
+    const semiOneLoser =
+      semiOne?.actual_advancing_team === semiOneHome ? semiOneAway : semiOneHome;
+
+    const semiTwoLoser =
+      semiTwo?.actual_advancing_team === semiTwoHome ? semiTwoAway : semiTwoHome;
+
+    return {
+      actualHomeTeam: semiOneLoser,
+      actualAwayTeam: semiTwoLoser,
+    };
+  }
+
+  return {
+    actualHomeTeam: resolveActualTeam(match.home_team, matchesByNumber),
+    actualAwayTeam: resolveActualTeam(match.away_team, matchesByNumber),
+  };
 }
 // Basic group-stage leaderboard
 leaderboardRouter.get("/:tournamentId", authMiddleware, async (req, res) => {
@@ -106,17 +136,33 @@ FROM matches
 
             const isKnockout = knockoutStages.has(match.stage);
 
-      const basePoints = isKnockout
-        ? scoreKnockoutMatchPrediction({
-            actualHome: match.result_home_goals,
-            actualAway: match.result_away_goals,
-            predictedHome: pred.predicted_home_goals,
-            predictedAway: pred.predicted_away_goals,
-            actualHomeTeam: resolveActualTeam(match.home_team, matchesByNumber),
-            actualAwayTeam: resolveActualTeam(match.away_team, matchesByNumber),
-            predictedHomeTeam: pred.predicted_home_team,
-            predictedAwayTeam: pred.predicted_away_team,
-          })
+      const actualMatchTeams = resolveActualMatchTeams(match, matchesByNumber);
+      
+
+const matchNumber = getMatchNumber(match.group_name);
+
+const basePoints = isKnockout
+  ? matchNumber === 103
+    ? scoreThirdPlacePrediction({
+        actualHome: match.result_home_goals,
+        actualAway: match.result_away_goals,
+        predictedHome: pred.predicted_home_goals,
+        predictedAway: pred.predicted_away_goals,
+        actualHomeTeam: actualMatchTeams.actualHomeTeam,
+        actualAwayTeam: actualMatchTeams.actualAwayTeam,
+        predictedHomeTeam: pred.predicted_home_team,
+        predictedAwayTeam: pred.predicted_away_team,
+      })
+    : scoreKnockoutMatchPrediction({
+        actualHome: match.result_home_goals,
+        actualAway: match.result_away_goals,
+        predictedHome: pred.predicted_home_goals,
+        predictedAway: pred.predicted_away_goals,
+        actualHomeTeam: actualMatchTeams.actualHomeTeam,
+        actualAwayTeam: actualMatchTeams.actualAwayTeam,
+        predictedHomeTeam: pred.predicted_home_team,
+        predictedAwayTeam: pred.predicted_away_team,
+      })
         : scoreMatchPrediction({
             actualHome: match.result_home_goals,
             actualAway: match.result_away_goals,
