@@ -8,13 +8,12 @@ export function scoreThirdPlacePrediction({
   predictedHomeTeam,
   predictedAwayTeam,
 }) {
-  const bothTeamsMatch =
-    actualHomeTeam === predictedHomeTeam &&
-    actualAwayTeam === predictedAwayTeam;
+ const homeTeamMatches = actualHomeTeam === predictedHomeTeam;
+const awayTeamMatches = actualAwayTeam === predictedAwayTeam;
 
-  if (!bothTeamsMatch) {
-    return 0;
-  }
+if (!homeTeamMatches && !awayTeamMatches) {
+  return 0;
+}
 
   let points = 0;
 
@@ -37,8 +36,8 @@ export function scoreThirdPlacePrediction({
 
   if (actualOutcome === predOutcome) points += 10;
   if (actualDiff === predDiff) points += 10;
-  if (actualHome === predictedHome) points += 10;
-  if (actualAway === predictedAway) points += 10;
+  if (homeTeamMatches && actualHome === predictedHome) points += 10;
+if (awayTeamMatches && actualAway === predictedAway) points += 10;
 
   return points;
 }
