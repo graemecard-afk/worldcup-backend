@@ -5,6 +5,7 @@ import {
   scoreMatchPrediction,
   scoreKnockoutMatchPrediction,
 } from '../scoring.js';
+import { scoreThirdPlacePrediction } from '../scoringThirdPlace.js';
 
 export const predictionsRouter = express.Router();
 function getMatchNumber(value) {
@@ -26,8 +27,37 @@ function resolveActualTeam(team, matchesByNumber) {
   }
 
   return sourceMatch.actual_advancing_team || team;
+  
 }
+function resolveActualMatchTeams(match, matchesByNumber) {
+  const matchNumber = getMatchNumber(match.group_name);
 
+  if (matchNumber === 103) {
+    const semiOne = matchesByNumber.get(101);
+    const semiTwo = matchesByNumber.get(102);
+
+    const semiOneHome = resolveActualTeam(semiOne?.home_team, matchesByNumber);
+    const semiOneAway = resolveActualTeam(semiOne?.away_team, matchesByNumber);
+    const semiTwoHome = resolveActualTeam(semiTwo?.home_team, matchesByNumber);
+    const semiTwoAway = resolveActualTeam(semiTwo?.away_team, matchesByNumber);
+
+    const semiOneLoser =
+      semiOne?.actual_advancing_team === semiOneHome ? semiOneAway : semiOneHome;
+
+    const semiTwoLoser =
+      semiTwo?.actual_advancing_team === semiTwoHome ? semiTwoAway : semiTwoHome;
+
+    return {
+      actualHomeTeam: semiOneLoser,
+      actualAwayTeam: semiTwoLoser,
+    };
+  }
+
+  return {
+    actualHomeTeam: resolveActualTeam(match.home_team, matchesByNumber),
+    actualAwayTeam: resolveActualTeam(match.away_team, matchesByNumber),
+  };
+}
 const knockoutStages = new Set([
   'Round of 32',
   'Round of 16',
@@ -231,17 +261,31 @@ predictionsRouter.get('/tournament/:tournamentId', authMiddleware, async (req, r
 
              const isKnockout = knockoutStages.has(r.stage);
 
-        let points = isKnockout
-          ? scoreKnockoutMatchPrediction({
-              actualHome: ah,
-              actualAway: aa,
-              predictedHome: ph,
-              predictedAway: pa,
-              actualHomeTeam: resolveActualTeam(r.home_team, matchesByNumber),
-              actualAwayTeam: resolveActualTeam(r.away_team, matchesByNumber),
-              predictedHomeTeam: r.predicted_home_team,
-              predictedAwayTeam: r.predicted_away_team,
-            })
+        const actualMatchTeams = resolveActualMatchTeams(r, matchesByNumber);
+const matchNumber = getMatchNumber(r.group_name);
+
+let points = isKnockout
+  ? matchNumber === 103
+    ? scoreThirdPlacePrediction({
+        actualHome: ah,
+        actualAway: aa,
+        predictedHome: ph,
+        predictedAway: pa,
+        actualHomeTeam: actualMatchTeams.actualHomeTeam,
+        actualAwayTeam: actualMatchTeams.actualAwayTeam,
+        predictedHomeTeam: r.predicted_home_team,
+        predictedAwayTeam: r.predicted_away_team,
+      })
+    : scoreKnockoutMatchPrediction({
+        actualHome: ah,
+        actualAway: aa,
+        predictedHome: ph,
+        predictedAway: pa,
+        actualHomeTeam: actualMatchTeams.actualHomeTeam,
+        actualAwayTeam: actualMatchTeams.actualAwayTeam,
+        predictedHomeTeam: r.predicted_home_team,
+        predictedAwayTeam: r.predicted_away_team,
+      })
           : scoreMatchPrediction({
               actualHome: ah,
               actualAway: aa,
