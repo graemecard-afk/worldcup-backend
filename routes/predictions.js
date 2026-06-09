@@ -75,7 +75,13 @@ const advancementBonusByStage = {
   'Third-place Play-off': 120,
   Final: 160,
 };
+// Temporary test lock time.
+// Change to 2026-06-28T07:00:00.000Z once verified.
+const ADVANCING_TEAM_LOCK_UTC = new Date("2026-06-09T09:00:00.000Z");
 
+function isAdvancingTeamLocked() {
+  return new Date() >= ADVANCING_TEAM_LOCK_UTC;
+}
 // Helper: is match still editable? (now < kickoff - 2h)
 async function isEditable(matchId) {
   const result = await query(
@@ -116,35 +122,71 @@ predictionsRouter.post('/:matchId', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Prediction window closed for this match' });
     }
 
-    await query(
-     `INSERT INTO prediction_history
-         (
-           user_id,
-           match_id,
-           predicted_home_goals,
-           predicted_away_goals,
-           predicted_advancing_team,
-           predicted_home_team,
-           predicted_away_team
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          req.user.id,
-          matchId,
-          predicted_home_goals,
-          predicted_away_goals,
-          predicted_advancing_team,
-          predicted_home_team,
-          predicted_away_team,
-        ]
-    );
+          const existing = await query(
+        `SELECT
+           p.id,
+           p.predicted_advancing_team,
+           m.stage
+         FROM matches m
+         LEFT JOIN predictions p
+           ON p.match_id = m.id
+          AND p.user_id = $1
+         WHERE m.id = $2`,
+        [req.user.id, matchId]
+      );
 
-    const existing = await query(
-      'SELECT id FROM predictions WHERE user_id = $1 AND match_id = $2',
-      [req.user.id, matchId]
-    );
+      if (existing.rowCount === 0) {
+        return res.status(404).json({ error: 'Match not found' });
+      }
 
-    if (existing.rowCount === 0) {
+      const existingPrediction = existing.rows[0];
+      const isKnockoutMatch = knockoutStages.has(existingPrediction.stage);
+
+      if (
+        isKnockoutMatch &&
+        isAdvancingTeamLocked() &&
+        !existingPrediction.id
+      ) {
+        return res.status(400).json({
+          error: 'Knockout bracket deadline has passed',
+        });
+      }
+
+      if (
+        isKnockoutMatch &&
+        isAdvancingTeamLocked() &&
+        existingPrediction.id &&
+        existingPrediction.predicted_advancing_team !== predicted_advancing_team
+      ) {
+        return res.status(400).json({
+          error: 'Advancing teams are locked for the knockout bracket',
+        });
+      }
+
+      await query(
+       `INSERT INTO prediction_history
+           (
+             user_id,
+             match_id,
+             predicted_home_goals,
+             predicted_away_goals,
+             predicted_advancing_team,
+             predicted_home_team,
+             predicted_away_team
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            req.user.id,
+            matchId,
+            predicted_home_goals,
+            predicted_away_goals,
+            predicted_advancing_team,
+            predicted_home_team,
+            predicted_away_team,
+          ]
+      );
+
+          if (!existingPrediction.id) {
       await query(
           `INSERT INTO predictions
            (
