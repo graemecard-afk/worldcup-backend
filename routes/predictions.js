@@ -77,8 +77,7 @@ const advancementBonusByStage = {
 };
 // Temporary test lock time.
 // Change to 2026-06-28T07:00:00.000Z once verified.
-const ADVANCING_TEAM_LOCK_UTC =
-  new Date("2026-06-10T02:20:00.000Z");
+const ADVANCING_TEAM_LOCK_UTC = new Date("2026-06-28T07:00:00.000Z");
 
 function isAdvancingTeamLocked() {
   return new Date() >= ADVANCING_TEAM_LOCK_UTC;
