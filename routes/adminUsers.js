@@ -1,6 +1,6 @@
 import express from 'express';
 import { query } from '../db.js';
-import { authMiddleware, adminOnly } from '../auth.js';
+import { authMiddleware, adminOnly, hashPassword } from '../auth.js';
 
 export const adminUsersRouter = express.Router();
 
@@ -50,5 +50,37 @@ adminUsersRouter.patch('/:id/payment-status', authMiddleware, adminOnly, async (
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update payment status' });
+  }
+});
+adminUsersRouter.patch('/:id/reset-password', authMiddleware, adminOnly, async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (!password || String(password).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  try {
+    const passwordHash = await hashPassword(password);
+
+    const result = await query(
+      `UPDATE users
+       SET password_hash = $1
+       WHERE id = $2
+       RETURNING id, name, email, timezone, is_admin, payment_status`,
+      [passwordHash, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      ok: true,
+      user: result.rows[0],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to reset password' });
   }
 });
