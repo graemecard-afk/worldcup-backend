@@ -75,9 +75,9 @@ const advancementBonusByStage = {
   'Third-place Play-off': 120,
   Final: 160,
 };
-// Knockout bracket advancing-team lock: Monday 29 June 2026, 5:50am NZT.
-// Equivalent UTC: 2026-06-28T17:50:00.000Z.
-const ADVANCING_TEAM_LOCK_UTC = new Date("2026-06-28T17:50:00.000Z");
+// Knockout bracket advancing-team lock: Monday 29 June 2026, 11:00pm NZT.
+// Equivalent UTC: 2026-06-29T11:00:00.000Z.
+const ADVANCING_TEAM_LOCK_UTC = new Date("2026-06-29T11:00:00.000Z");
 
 function isAdvancingTeamLocked() {
   return new Date() >= ADVANCING_TEAM_LOCK_UTC;
